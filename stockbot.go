@@ -14,28 +14,19 @@ type Analise struct {
 }
 
 func main() {
-	fmt.Println("Hello, master.")
 
+	fmt.Println("Hello, master.")
 	
 	analise := Analise{
 		StockName: "CIEL3",
 	}
 	// Instantiate default collector
 	c := colly.NewCollector(
-		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
+		// Visit only domains: app.tororadar.com.br
 		colly.AllowedDomains("app.tororadar.com.br"),
 		colly.UserAgent("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"),
 	)
 
-	//c.OnHTML("*", func(e *colly.HTMLElement) {
-		//fmt.Println("OnHtml")
-		//fmt.Println(e)
-		// Visit link found on page
-		// Only those links are visited which are in AllowedDomains
-		//c.Visit(e.Request.AbsoluteURL(link))
-	//})
-
-	// On every a element which has href attribute call callback
 	c.OnHTML("div.graph-panel", func(e *colly.HTMLElement) {
 		
 		analizeLabel := e.ChildText("div:nth-child(2) h5:first-child")
@@ -49,7 +40,7 @@ func main() {
 			case strings.Contains(divClass, "graph-normal"):
 				value = "stay"
 		}
-		//fmt.Printf("Label found: %s\n", analizeLabel)
+
 		switch analizeLabel {
 			case "Curto prazo":
 				analise.ShortTime = value

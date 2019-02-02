@@ -1,22 +1,30 @@
 package main
 
 import (
-	"strings"
 	"fmt"
+	"log"
+	"regexp"
+	"strings"
+
 	"github.com/gocolly/colly"
 )
 
 type Analise struct {
-	StockName  string
-	ShortTime  string
-	MediumTime string
-	LongTime   string 
+	StockName       string
+	ShortTime       string
+	MediumTime      string
+	LongTime        string
+	BuyPrices       []string
+	SellPrices      []string
+	BuyDescription  string
+	SellDescription string
 }
 
 func main() {
 
 	fmt.Println("Hello, master.")
-	
+
+	// print
 	analise := Analise{
 		StockName: "CIEL3",
 	}
@@ -28,28 +36,41 @@ func main() {
 	)
 
 	c.OnHTML("div.graph-panel", func(e *colly.HTMLElement) {
-		
-		analizeLabel := e.ChildText("div:nth-child(2) h5:first-child")
-		divClass := e.Attr("class")
-		var value string 
-		switch {
-			case strings.Contains(divClass, "graph-up"):
-				value = "up"
-			case strings.Contains(divClass, "graph-down"):
-				value = "down"
-			case strings.Contains(divClass, "graph-normal"):
-				value = "stay"
+
+		analizeTimeLabel := e.ChildText("div:nth-child(2) h5:first-child")
+
+		tendency := parseGraphTendency(e)
+
+		switch analizeTimeLabel {
+		case "Curto prazo":
+			analise.ShortTime = tendency
+		case "Médio prazo":
+			analise.MediumTime = tendency
+		case "Longo prazo":
+			analise.LongTime = tendency
 		}
 
-		switch analizeLabel {
-			case "Curto prazo":
-				analise.ShortTime = value
-			case "Médio prazo":
-				analise.MediumTime = value
-			case "Longo prazo":	
-				analise.LongTime = value
+	})
+
+	c.OnHTML("div.gray-box", func(e *colly.HTMLElement) {
+		log.Println("h4: " + e.ChildText("h4"))
+
+		isBuyDescription := strings.Contains(e.ChildText("h4"), "Avaliar compras")
+		isSellDescritpion := strings.Contains(e.ChildText("h4"), "Avaliar vendas")
+		var description string
+		if isBuyDescription || isSellDescritpion {
+			description = e.ChildText("p")
+			prices := parsePrices(description)
+			if isBuyDescription {
+				analise.BuyPrices = prices
+				analise.BuyDescription = description
+
+			} else {
+				analise.SellPrices = prices
+				analise.SellDescription = description
+			}
 		}
-		
+
 	})
 
 	// Before making a request print "Visiting ..."
@@ -61,12 +82,39 @@ func main() {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
-	URL := fmt.Sprintf("https://app.tororadar.com.br/analise/%s/",analise.StockName)
+	URL := fmt.Sprintf("https://app.tororadar.com.br/analise/%s/", analise.StockName)
 
 	//The method visit executes a HEAD http resquest method and its returns a http code 405 for this site
 	//c.Visit(fmt.Sprintf("https://app.tororadar.com.br/analise/%s/",analise.StockName))
 	c.Request("GET", URL, nil, nil, nil)
 
 	fmt.Println(analise)
-	
+
+}
+
+func parseGraphTendency(e *colly.HTMLElement) string {
+
+	var value string
+	switch {
+	case containsClass(e, "graph-up"):
+		value = "up"
+	case containsClass(e, "graph-down"):
+		value = "down"
+	case containsClass(e, "graph-normal"):
+		value = "stay"
+	}
+
+	return value
+}
+
+func containsClass(e *colly.HTMLElement, className string) bool {
+	divClass := e.Attr("class")
+	return strings.Contains(divClass, className)
+}
+
+func parsePrices(descriptionText string) []string {
+	re := regexp.MustCompile("\\d*\\,\\d{1,2}")
+	prices := re.FindAllString(descriptionText, -1)
+
+	return prices
 }
